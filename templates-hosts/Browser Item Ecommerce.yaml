@@ -1,0 +1,155 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: b737f0bf5c2046f9920a8e3b03995065
+      name: JLCP
+  templates:
+    - uuid: 1843bbebb1b64e0a8f73022026b5cf41
+      template: 'Browser Item Ecommerce'
+      name: 'Browser Item Ecommerce'
+      groups:
+        - name: JLCP
+      items:
+        - uuid: 223051f244084ec78169fbaaa8c7f878
+          name: landing-ecommerce
+          type: BROWSER
+          key: landing-ecommerce
+          delay: 1d
+          trends: '0'
+          value_type: TEXT
+          params: |
+            var params = JSON.parse(value);
+            
+            function uniq(a) {
+                return a.sort().filter(function (item, pos, ary) {
+                    return !pos || item != ary[pos - 1];
+                });
+            }
+            
+            var browser = new Browser(Browser.chromeOptions());
+            browser.navigate(params.schema + '://' + params.domain);
+            
+            var el = browser.findElements("tag name", "a");
+            var links = [];
+            for (var n = 0; n < el.length; n++) {
+                links.push(el[n].getAttribute('href'));
+            }
+            
+            links = uniq(links);
+            
+            var lld = [];
+            for (var i = 0; i < links.length; i++) {
+                if (links[i].match(/product.html.*/)) {
+                    var row = {};
+                    row["{#URL}"] = params.schema + '://' + params.domain + '/' + links[i];
+                    lld.push(row);
+                }
+            }
+            
+            return JSON.stringify(lld);
+          parameters:
+            - name: domain
+              value: '{$DOMAIN}'
+            - name: schema
+              value: '{$SCHEMA}'
+      discovery_rules:
+        - uuid: 1d75b4e605b24ff29e80b35163b70bc0
+          name: page
+          type: DEPENDENT
+          key: products.page
+          delay: '0'
+          item_prototypes:
+            - uuid: ee5643de6e1c4f61be8b3003ee7e01cb
+              name: '{#URL} performance data'
+              type: DEPENDENT
+              key: 'pd[{#URL}]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - $.performance_data
+              master_item:
+                key: 'url[{#URL}]'
+              tags:
+                - tag: app
+                  value: performance_data
+            - uuid: 6357d14c19ee476a93abe1d740ed6ddf
+              name: '{#URL} screenshot'
+              type: DEPENDENT
+              key: 'screenshot[{#URL}]'
+              delay: '0'
+              trends: '0'
+              value_type: BINARY
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - $.screenshot
+              master_item:
+                key: 'url[{#URL}]'
+            - uuid: 313b8ccbdaf74fbc93951403290b1ed0
+              name: 'seek for "Add to Cart" in {#URL}'
+              type: DEPENDENT
+              key: 'seek[Add to Cart,{#URL}]'
+              delay: '0'
+              valuemap:
+                name: keyword
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value.match(/Add to Cart/g) ? 1 : 0;'
+              master_item:
+                key: 'src[{#URL}]'
+            - uuid: b4193e0b6ac544caa5356b334c682731
+              name: '{#URL} Source'
+              type: DEPENDENT
+              key: 'src[{#URL}]'
+              delay: '0'
+              trends: '0'
+              value_type: TEXT
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - $.source
+              master_item:
+                key: 'url[{#URL}]'
+            - uuid: ca2f87563606441084d79051216aefa1
+              name: '{#URL}'
+              type: BROWSER
+              key: 'url[{#URL}]'
+              delay: 1d
+              trends: '0'
+              value_type: TEXT
+              params: |
+                var params = JSON.parse(value);
+                var browser = new Browser(Browser.chromeOptions());
+                
+                browser.setScreenSize(Number(1280), Number(1024));
+                browser.navigate(params.url);
+                browser.collectPerfEntries();
+                const screenshot = browser.getScreenshot();
+                const result = browser.getResult();
+                result.screenshot = screenshot;
+                var source = browser.getPageSource();
+                result.source = source;
+                
+                return JSON.stringify(result);
+              parameters:
+                - name: url
+                  value: '{#URL}'
+          master_item:
+            key: landing-ecommerce
+      macros:
+        - macro: '{$DOMAIN}'
+          value: keen.io/guides/ecommerce-analytics/example-site
+        - macro: '{$SCHEMA}'
+          value: https
+      valuemaps:
+        - uuid: 1204b87d0bc34954a4b51c6e07421cc8
+          name: keyword
+          mappings:
+            - value: '0'
+              newvalue: S/Estoque
+            - value: '1'
+              newvalue: Estoque

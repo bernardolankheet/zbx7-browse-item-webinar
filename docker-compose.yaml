@@ -1,0 +1,84 @@
+version: '3.7'
+services:
+ mysql-server:
+  image: mysql:8.0
+  networks:
+   - zbx_net
+  command:
+   - mysqld
+   - --character-set-server=utf8
+   - --collation-server=utf8_bin
+   - --log_bin_trust_function_creators=1
+   - --default-authentication-plugin=mysql_native_password
+  environment:
+   - MYSQL_USER=zabbix
+   - MYSQL_DATABASE=zabbixdb
+   - MYSQL_PASSWORD=PasswOrd
+   - MYSQL_ROOT_PASSWORD=StrongPassword
+   - ZBX_JAVAGATEWAY=zabbix-java-gateway
+  volumes:
+   - zabbix-mysql:/var/lib/mysql
+
+ selenium-chrome-server:
+  image: selenium/standalone-chrome:latest
+  shm_size: 2gb
+  ports:
+    - "4444:4444"
+  networks:
+   - zbx_net    
+
+ zabbix-server-mysql:
+  image: zabbix/zabbix-server-mysql:7.0-alpine-latest
+  networks:
+   - zbx_net
+  ports:
+   - 10051:10051
+  environment:
+   - DB_SERVER_HOST=mysql-server
+   - ZBX_WEBSERVICEURL=http://zabbix-web-service:10053/report   
+   - MYSQL_DATABASE=zabbixdb
+   - MYSQL_USER=zabbix
+   - MYSQL_PASSWORD=Passw0rd
+   - MYSQL_ROOT_PASSWORD=StrongPassword
+   - ZBX_JAVAGATEWAY=zabbix-java-gateway
+   - ZBX_STARTBROWSERPOLLERS=1
+   - ZBX_WEBDRIVERURL=http://selenium-chrome-server:4444/wd/hub   
+  depends_on:
+   - mysql-server
+
+ zabbix-web-nginx-mysql:
+  image: zabbix/zabbix-web-nginx-mysql:7.0-alpine-latest
+  networks:
+   - zbx_net
+  ports:
+   - 80:8080
+   - 443:8443
+  environment:
+   - ZBX_SERVER_HOST=zabbix-server-mysql
+   - ZBX_SERVER_NAME=Zabbix Docker Trunk
+   - DB_SERVER_HOST=mysql-server
+   - MYSQL_DATABASE=zabbixdb
+   - MYSQL_USER=zabbix
+   - MYSQL_PASSWORD=Passw0rd
+   - MYSQL_ROOT_PASSWORD=StrongPassword
+  depends_on:
+   - mysql-server
+   - zabbix-server-mysql 
+
+ zabbix-web-service:
+  image: zabbix/zabbix-web-service:7.0-alpine-latest
+  ports:
+    - "10053:10053"
+  environment:  
+   - ZBX_LISTENPORT=10053  
+  cap_add:
+    - SYS_ADMIN
+  networks:
+    - zbx_net
+ 
+networks:
+ zbx_net:
+   driver: overlay
+
+volumes:
+  zabbix-mysql:

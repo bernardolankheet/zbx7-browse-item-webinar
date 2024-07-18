@@ -1,0 +1,13 @@
+zabbix_export:
+  version: '7.0'
+  host_groups:
+    - uuid: cf09232393a04323ac0a81ac428b4131
+      name: jlcp
+  hosts:
+    - host: ecommerce
+      name: ecommerce
+      templates:
+        - name: 'Browser Item Ecommerce'
+      groups:
+        - name: jlcp
+      inventory_mode: DISABLED

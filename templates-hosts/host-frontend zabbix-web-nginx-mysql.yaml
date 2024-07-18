@@ -1,0 +1,13 @@
+zabbix_export:
+  version: '7.0'
+  host_groups:
+    - uuid: cf09232393a04323ac0a81ac428b4131
+      name: jlcp
+  hosts:
+    - host: 'frontend zabbix-web-nginx-mysql'
+      name: 'frontend zabbix-web-nginx-mysql'
+      templates:
+        - name: 'Website by Browser - Custom'
+      groups:
+        - name: jlcp
+      inventory_mode: DISABLED
